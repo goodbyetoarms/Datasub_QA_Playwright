@@ -1,44 +1,69 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Request A Quote Form', () => {
+test.describe('Request A Quote form tests', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('https://qatest.datasub.com');
+    await page.locator('h5:has-text("Request A Quote")').scrollIntoViewIfNeeded();
   });
 
-  test('should submit form with valid data', async ({ page }) => {
-    await page.fill('input[name="name"]', 'John Doe');
-    await page.fill('input[name="email"]', 'john@example.com');
-    await page.fill('input[name="subject"]', 'QA Test');
-    await page.fill('textarea[name="message"]', 'This is a test message.');
+  test('Happy Path — корректно заполненные поля', async ({ page }) => {
+    await page.fill('#name', 'Stallone Silvestr');
+    await page.fill('#email', 'stallone.silvestr@example.com');
+    await page.selectOption('#service', 'B Service');
+    await page.check('#purposeBusiness');
+    await page.check('#withdrawCard');
+    await page.fill('#message', 'Looking forward to your quote.');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=Thank you')).toBeVisible();
+    await expect(page.locator('#formStatus')).toBeVisible();
   });
 
-  test('should not submit empty form', async ({ page }) => {
+  test('Negative — email не заполнен', async ({ page }) => {
+    await page.fill('#name', 'Stallone Silvestr');
+    await page.selectOption('#service', 'C Service');
+    await page.check('#purposePersonal');
+    await page.check('#withdrawCard');
+    await page.fill('#message', 'No email provided');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=required')).toBeVisible();
+    await expect(page.locator('#email:invalid')).toHaveCount(1);
+    await expect(page.locator('#formStatus')).toBeHidden();
   });
 
-  test('should show validation error for invalid email', async ({ page }) => {
-    await page.fill('input[name="email"]', 'invalid-email');
+  test('Negative — имя не заполнено', async ({ page }) => {
+    await page.fill('#email', 'test@example.com');
+    await page.selectOption('#service', 'D Service');
+    await page.check('#purposeBusiness');
+    await page.check('#withdrawCash');
+    await page.check('#withdrawCrypto');
+    await page.fill('#message', 'Forgot to enter name');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=valid email')).toBeVisible();
+    await expect(page.locator('#name:invalid')).toHaveCount(1);
+    await expect(page.locator('#formStatus')).toBeHidden();
   });
 
-  test('should prevent multiple submissions', async ({ page }) => {
-    await page.fill('input[name="name"]', 'Jane Doe');
-    await page.fill('input[name="email"]', 'jane@example.com');
-    await page.fill('input[name="subject"]', 'Quote Request');
-    await page.fill('textarea[name="message"]', 'Test repeat submit.');
-    const button = page.locator('button[type="submit"]');
-    await button.click();
-    await expect(button).toBeDisabled();
-  });
-
-  test('should submit form with only required fields filled', async ({ page }) => {
-    await page.fill('input[name="name"]', 'Minimal User');
-    await page.fill('input[name="email"]', 'minimal@example.com');
+  test('Negative — выбраны все чекбоксы оплаты', async ({ page }) => {
+    await page.fill('#name', 'Anna');
+    await page.fill('#email', 'anna@example.com');
+    await page.selectOption('#service', 'A Service');
+    await page.check('#purposePersonal');
+    await page.check('#withdrawCash');
+    await page.check('#withdrawCard');
+    await page.check('#withdrawCrypto');
+    await page.fill('#message', 'Test multiple withdrawal options');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=Thank you')).toBeVisible();
+    // Если запрещено — добавить проверку ошибки:
+    // await expect(page.locator('.withdrawal-error')).toBeVisible();
+    await expect(page.locator('#formStatus')).toBeHidden();
+  });
+
+  test('Negative — не выбран Business/Personal', async ({ page }) => {
+    await page.fill('#name', 'Mike');
+    await page.fill('#email', 'mike@example.com');
+    await page.selectOption('#service', 'C Service');
+    await page.check('#withdrawCard');
+    await page.fill('#message', 'Account purpose not selected');
+    await page.click('button[type="submit"]');
+    // Предполагаемая ошибка — добавить, если есть:
+    // await expect(page.locator('.account-purpose-error')).toBeVisible();
+    await expect(page.locator('#formStatus')).toBeHidden();
   });
 });
